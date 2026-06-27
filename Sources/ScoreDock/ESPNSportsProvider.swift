@@ -54,6 +54,7 @@ public struct ESPNMapper {
             guard let sports = decoded.sports else { return [] }
             
             for sport in sports {
+                let actualSport = sport.name?.lowercased() == "soccer" ? "football" : (sport.name?.lowercased() ?? sportType.lowercased())
                 guard let leagues = sport.leagues else { continue }
                 for league in leagues {
                     let leagueName = league.name ?? "International"
@@ -215,23 +216,18 @@ public struct ESPNMapper {
                         }
                         
                         // Map flags using display names
-                        let displayNameA = compA.displayName ?? nameA
-                        let displayNameB = compB.displayName ?? nameB
-                        let flagA = flagEmoji(forCountry: displayNameA, sport: sportType)
-                        let flagB = flagEmoji(forCountry: displayNameB, sport: sportType)
-                        
                         let match = MatchState(
-                            sport: sportType,
+                            sport: actualSport.capitalized,
                             espnID: event.id,
                             teamA: nameA.uppercased(),
                             teamAId: compA.id,
                             teamAShortName: compA.shortDisplayName,
-                            teamAFlag: flagA,
+                            teamAFlag: flagEmoji(forCountry: compA.displayName ?? nameA, sport: actualSport),
                             scoreA: isLive ? finalScoreA : "–",
                             teamB: nameB.uppercased(),
                             teamBId: compB.id,
                             teamBShortName: compB.shortDisplayName,
-                            teamBFlag: flagB,
+                            teamBFlag: flagEmoji(forCountry: compB.displayName ?? nameB, sport: actualSport),
                             scoreB: isLive ? finalScoreB : "–",
                             gameTime: gameTime,
                             isLive: isLive,
@@ -594,20 +590,43 @@ public final class ESPNSportsProvider: SportsProvider {
                 let limitHours = MatchCoordinator.shared.upcomingMatchWindow
                 let formatter = DateFormatter()
                 formatter.dateFormat = "yyyyMMdd"
+                formatter.timeZone = TimeZone(identifier: "America/New_York")!
+                
                 let today = Date()
                 let future = today.addingTimeInterval(limitHours * 3600)
-                let dateParam = "\(formatter.string(from: today))-\(formatter.string(from: future))"
                 
-                let url = URL(string: "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=\(dateParam)")!
+                let date1 = formatter.string(from: today)
+                let date2 = formatter.string(from: future)
+                
+                var results: [MatchState] = []
+                
+                // Fetch today's matches
+                let url1 = URL(string: "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=\(date1)")!
                 do {
-                    var request = URLRequest(url: url)
-                    request.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
-                    let (data, _) = try await URLSession.shared.data(for: request)
-                    return ESPNSiteMapper.map(response: data, sportType: "football", tournamentName: "FIFA World Cup")
+                    var req = URLRequest(url: url1)
+                    req.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+                    let (data, _) = try await URLSession.shared.data(for: req)
+                    let matches = ESPNSiteMapper.map(response: data, sportType: "football", tournamentName: "FIFA World Cup")
+                    results.append(contentsOf: matches)
                 } catch {
-                    debugLog("[-] FIFA WC site fetch failed: \(error)")
-                    return []
+                    debugLog("[-] FIFA WC site fetch failed for \(date1): \(error)")
                 }
+                
+                // Fetch future matches if the lookahead crosses into the next day
+                if date1 != date2 {
+                    let url2 = URL(string: "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=\(date2)")!
+                    do {
+                        var req = URLRequest(url: url2)
+                        req.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+                        let (data, _) = try await URLSession.shared.data(for: req)
+                        let matches = ESPNSiteMapper.map(response: data, sportType: "football", tournamentName: "FIFA World Cup")
+                        results.append(contentsOf: matches)
+                    } catch {
+                        debugLog("[-] FIFA WC site fetch failed for \(date2): \(error)")
+                    }
+                }
+                
+                return results
             }
             
             var combined: [MatchState] = []

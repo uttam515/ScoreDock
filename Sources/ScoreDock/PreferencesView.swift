@@ -24,6 +24,11 @@ public struct PreferencesView: View {
                 .tabItem {
                     Label("Rotation Mode", systemImage: "arrow.triangle.2.circlepath")
                 }
+                
+            apiTab
+                .tabItem {
+                    Label("API & Data", systemImage: "network")
+                }
         }
         .frame(width: 420, height: 320)
         .padding()
