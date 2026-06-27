@@ -323,10 +323,6 @@ public struct ScoreWidgetView: View {
                 now = date
             }
         }
-        .padding(.top, viewModel.isHorizontal ? 11 : 4)
-        .padding(.bottom, viewModel.isHorizontal ? 7 : 4)
-        .padding(.leading, viewModel.isHorizontal ? 4 : 11)
-        .padding(.trailing, viewModel.isHorizontal ? 4 : 7)
     }
     
     // Dynamic gradient based on team colors, or blue for upcoming, black for live fallback
