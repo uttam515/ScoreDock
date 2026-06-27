@@ -165,10 +165,11 @@ public final class MatchCoordinator: ObservableObject {
     
     private init() {
         // Initialize the provider based on current setting
-        if UserDefaults.standard.string(forKey: apiSourceKey) == "real" {
-            self.activeProvider = ESPNSportsProvider()
-        } else {
+        let apiSetting = UserDefaults.standard.string(forKey: apiSourceKey)
+        if apiSetting == "mock" {
             self.activeProvider = MockSportsProvider()
+        } else {
+            self.activeProvider = ESPNSportsProvider()
         }
         
         // Load initial state from cache
@@ -220,7 +221,7 @@ public final class MatchCoordinator: ObservableObject {
     }
     
     public var useRealAPIs: Bool {
-        get { UserDefaults.standard.string(forKey: apiSourceKey) == "real" }
+        get { UserDefaults.standard.string(forKey: apiSourceKey) != "mock" }
         set {
             UserDefaults.standard.set(newValue ? "real" : "mock", forKey: apiSourceKey)
             updateProvider()

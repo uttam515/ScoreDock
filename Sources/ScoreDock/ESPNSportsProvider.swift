@@ -536,14 +536,18 @@ public final class ESPNSportsProvider: SportsProvider {
             // 1. Football – personalized header (live + recent)
             group.addTask {
                 let url = URL(string: "https://site.api.espn.com/apis/personalized/v2/scoreboard/header?sport=soccer&region=in&tz=Asia/Calcutta")!
-                let (data, _) = try await URLSession.shared.data(from: url)
+                var request = URLRequest(url: url)
+                request.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+                let (data, _) = try await URLSession.shared.data(for: request)
                 return ESPNMapper.map(response: data, sportType: "football")
             }
             
             // 2. Cricket – personalized header
             group.addTask {
                 let url = URL(string: "https://site.api.espn.com/apis/personalized/v2/scoreboard/header?sport=cricket&region=in&tz=Asia/Calcutta")!
-                let (data, _) = try await URLSession.shared.data(from: url)
+                var request = URLRequest(url: url)
+                request.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+                let (data, _) = try await URLSession.shared.data(for: request)
                 return ESPNMapper.map(response: data, sportType: "cricket")
             }
             
@@ -560,7 +564,9 @@ public final class ESPNSportsProvider: SportsProvider {
                 
                 let url = URL(string: "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard?dates=\(dateParam)")!
                 do {
-                    let (data, _) = try await URLSession.shared.data(from: url)
+                    var request = URLRequest(url: url)
+                    request.addValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15", forHTTPHeaderField: "User-Agent")
+                    let (data, _) = try await URLSession.shared.data(for: request)
                     return ESPNSiteMapper.map(response: data, sportType: "football", tournamentName: "FIFA World Cup")
                 } catch {
                     debugLog("[-] FIFA WC site fetch failed: \(error)")

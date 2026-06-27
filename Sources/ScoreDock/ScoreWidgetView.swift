@@ -220,106 +220,107 @@ public struct ScoreWidgetView: View {
     }
     
     public var body: some View {
-        ZStack {
-            Group {
-                if viewModel.isHorizontal {
-                    horizontalBody
-                        .id(viewModel.currentMatch.id)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .trailing).combined(with: .opacity),
-                            removal: .move(edge: .leading).combined(with: .opacity)
-                        ))
-                } else {
-                    verticalBody
-                        .id(viewModel.currentMatch.id)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .top).combined(with: .opacity)
-                        ))
+        GeometryReader { geo in
+            let baseHeight: CGFloat = viewModel.isHorizontal ? 64 : 128
+            let rawScale = geo.size.height / baseHeight
+            // Allow slight upscale, but mostly designed to scale down for smaller Docks
+            let scale = min(1.2, rawScale)
+            
+            ZStack {
+                Group {
+                    if viewModel.isHorizontal {
+                        horizontalBody
+                            .id(viewModel.currentMatch.id)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .trailing).combined(with: .opacity),
+                                removal: .move(edge: .leading).combined(with: .opacity)
+                            ))
+                    } else {
+                        verticalBody
+                            .id(viewModel.currentMatch.id)
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .bottom).combined(with: .opacity),
+                                removal: .move(edge: .top).combined(with: .opacity)
+                            ))
+                    }
                 }
-            }
-            .padding(.vertical, viewModel.isHorizontal ? 4 : 8)
-            .padding(.horizontal, viewModel.isHorizontal ? 10 : 4)
-            // Dynamically size width for horizontal bottom Dock, vertical spans full tile height
-            .frame(width: viewModel.isHorizontal ? viewModel.estimatedCardWidth : nil)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            // HoverTracker applied to the card background directly (safe now since scaleEffect is removed)
-            .background(
-                HoverTracker { hovering in
+                .padding(.vertical, viewModel.isHorizontal ? 4 : 8)
+                .padding(.horizontal, viewModel.isHorizontal ? 10 : 4)
+                .frame(width: viewModel.isHorizontal ? viewModel.estimatedCardWidth : nil)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    HoverTracker { hovering in
+                        withAnimation {
+                            isHovered = hovering
+                            viewModel.isHovered = hovering
+                        }
+                    }
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(cardBackground.opacity(isHovered ? 0.45 : 0.35))
+                        .background(.ultraThinMaterial)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.white.opacity(isHovered ? 0.22 : 0.12), lineWidth: 1)
+                        )
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .contentShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(color: Color.black.opacity(isHovered ? 0.35 : 0.15), radius: isHovered ? 6 : 3, x: 0, y: isHovered ? 3 : 1)
+                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.estimatedCardWidth)
+                .animation(.spring(response: 0.24, dampingFraction: 0.68), value: isHovered)
+                .contextMenu {
+                    if let espnID = viewModel.currentMatch.espnID {
+                        let espnURLString = "https://www.espn.in/\(viewModel.currentMatch.sport.lowercased())/match/_/gameId/\(espnID)"
+                        
+                        Button(action: {
+                            if let url = URL(string: espnURLString) {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }) {
+                            Label("Open in ESPN", systemImage: "safari")
+                        }
+                        
+                        Button(action: {
+                            let pasteboard = NSPasteboard.general
+                            pasteboard.clearContents()
+                            pasteboard.setString(espnURLString, forType: .string)
+                        }) {
+                            Label("Copy ESPN Link", systemImage: "doc.on.doc")
+                        }
+                    } else {
+                        Text("ESPN Link Unavailable")
+                    }
+                }
+                .onTapGesture {
                     withAnimation {
-                        isHovered = hovering
-                        viewModel.isHovered = hovering // Notify model to trigger AppDelegate tracking
+                        MatchCoordinator.shared.cycleNextMatch()
                     }
                 }
-            )
-            // Background card glassmorphism — dynamic gradient based on team colors, or blue for upcoming
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(cardBackground.opacity(isHovered ? 0.45 : 0.35))
-                    .background(.ultraThinMaterial)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(Color.white.opacity(isHovered ? 0.22 : 0.12), lineWidth: 1)
-                    )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .contentShape(RoundedRectangle(cornerRadius: 16))
-            // Shadow effects (scaleEffect removed to prevent window boundary / Dock magnification jitter)
-            .shadow(color: Color.black.opacity(isHovered ? 0.35 : 0.15), radius: isHovered ? 6 : 3, x: 0, y: isHovered ? 3 : 1)
-            // Animate width changes and hover states with smooth spring dynamics
-            .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.estimatedCardWidth)
-            .animation(.spring(response: 0.24, dampingFraction: 0.68), value: isHovered)
-            .contextMenu {
-                if let espnID = viewModel.currentMatch.espnID {
-                    let espnURLString = "https://www.espn.in/\(viewModel.currentMatch.sport.lowercased())/match/_/gameId/\(espnID)"
-                    
-                    Button(action: {
-                        if let url = URL(string: espnURLString) {
-                            NSWorkspace.shared.open(url)
-                        }
-                    }) {
-                        Label("Open in ESPN", systemImage: "safari")
-                    }
-                    
-                    Button(action: {
-                        let pasteboard = NSPasteboard.general
-                        pasteboard.clearContents()
-                        pasteboard.setString(espnURLString, forType: .string)
-                    }) {
-                        Label("Copy ESPN Link", systemImage: "doc.on.doc")
-                    }
-                } else {
-                    Text("ESPN Link Unavailable")
-                }
-            }
-            .onTapGesture {
-                withAnimation {
-                    MatchCoordinator.shared.cycleNextMatch()
-                }
-            }
-            .gesture(
-                DragGesture(minimumDistance: 15, coordinateSpace: .local)
-                    .onEnded { value in
-                        if value.translation.width < -10 {
-                            // Swipe left -> next match
-                            withAnimation {
-                                MatchCoordinator.shared.cycleNextMatch()
-                            }
-                        } else if value.translation.width > 10 {
-                            // Swipe right -> previous match
-                            withAnimation {
-                                MatchCoordinator.shared.cyclePrevMatch()
+                .gesture(
+                    DragGesture(minimumDistance: 15, coordinateSpace: .local)
+                        .onEnded { value in
+                            if value.translation.width < -10 {
+                                withAnimation {
+                                    MatchCoordinator.shared.cycleNextMatch()
+                                }
+                            } else if value.translation.width > 10 {
+                                withAnimation {
+                                    MatchCoordinator.shared.cyclePrevMatch()
+                                }
                             }
                         }
-                    }
-            )
+                )
+            }
+            .scaleEffect(scale)
+            .position(x: geo.size.width / 2, y: geo.size.height / 2)
         }
         .onReceive(countdownTimer) { date in
             if viewModel.currentMatch.isUpcoming {
                 now = date
             }
         }
-        // Insetting the scorecard inside the full Dock bounds to leave buffer space for the hover scale effect.
         .padding(.top, viewModel.isHorizontal ? 11 : 4)
         .padding(.bottom, viewModel.isHorizontal ? 7 : 4)
         .padding(.leading, viewModel.isHorizontal ? 4 : 11)
