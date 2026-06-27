@@ -11,6 +11,8 @@ public struct SportMetadata: Codable, Equatable {
     public var runs: String?
     public var target: String?
     public var inningNumber: Int?
+    public var previousInningScoreA: String?
+    public var previousInningScoreB: String?
     
     // Football specific
     public var addedTime: String?

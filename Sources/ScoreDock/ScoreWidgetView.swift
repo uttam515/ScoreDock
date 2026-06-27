@@ -26,6 +26,7 @@ public class ScoreViewModel: ObservableObject {
     @Published public var isHovered = false // Expose hover state to AppDelegate for tracking
     @Published public var isHorizontal = true // Tracks Dock orientation (horizontal vs vertical)
     @Published public var containerWidth: CGFloat = 240 // The width of the spanned helper tiles from AppDelegate
+    @Published public var iconHeight: CGFloat = 64
     
     public var onWidgetClicked: (() -> Void)?
     
@@ -221,16 +222,13 @@ public struct ScoreWidgetView: View {
     
     public var body: some View {
         GeometryReader { geo in
-            let baseHeight: CGFloat = viewModel.isHorizontal ? 64 : 128
-            // The GeometryReader gets the full height of the dock bar, but icons are smaller.
-            // Multiply by 0.82 to proportionately scale the widget to match standard macOS icon heights.
-            let rawScale = (geo.size.height * 0.82) / baseHeight
-            let scale = min(1.2, rawScale)
+            // The GeometryReader gets the full height of the dock bar.
+            // Based on exact visual measurements, standard macOS Dock icons visually take up about 65% of the dock bar's height.
+            let basePillHeight = viewModel.isHorizontal ? (geo.size.height * 0.65) : geo.size.height
+            let pillHeight = isHovered ? (basePillHeight + 12) : basePillHeight
+                
+            let pillWidth = geo.size.width
             
-            // Un-scale the width so that after .scaleEffect(scale) is applied, 
-            // the rendered width perfectly matches the full container width (edge-to-edge across all 5 tiles).
-            let intendedWidth = geo.size.width
-            let baseWidth = intendedWidth / scale
             
             ZStack {
                 Group {
@@ -241,6 +239,7 @@ public struct ScoreWidgetView: View {
                                 insertion: .move(edge: .trailing).combined(with: .opacity),
                                 removal: .move(edge: .leading).combined(with: .opacity)
                             ))
+                            .scaleEffect(isHovered ? 1.12 : 1.0)
                     } else {
                         verticalBody
                             .id(viewModel.currentMatch.id)
@@ -248,12 +247,13 @@ public struct ScoreWidgetView: View {
                                 insertion: .move(edge: .bottom).combined(with: .opacity),
                                 removal: .move(edge: .top).combined(with: .opacity)
                             ))
+                            .scaleEffect(isHovered ? 1.12 : 1.0)
                     }
                 }
                 .padding(.vertical, viewModel.isHorizontal ? 4 : 8)
-                .padding(.horizontal, viewModel.isHorizontal ? 10 : 4)
+                .padding(.horizontal, viewModel.isHorizontal ? 16 : 4)
                 // Draw the view at exactly its base intended size...
-                .frame(width: baseWidth, height: baseHeight)
+                .frame(width: pillWidth, height: pillHeight)
                 // ...and let HoverTracker run on this fixed size
                 .background(
                     HoverTracker { hovering in
@@ -320,9 +320,9 @@ public struct ScoreWidgetView: View {
                         }
                 )
             }
-            // ...then scale the whole fully-rendered fixed-size view down to fit the actual available dock size
-            .scaleEffect(scale)
-            .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            // Center the pill horizontally, but shift it slightly downwards vertically 
+            // (macOS dock has more padding at the top, so exact mathematical center looks too high).
+            .position(x: geo.size.width / 2, y: (geo.size.height / 2) + (geo.size.height * 0.05))
         }
         .onReceive(countdownTimer) { date in
             if viewModel.currentMatch.isUpcoming {
@@ -361,12 +361,14 @@ public struct ScoreWidgetView: View {
                 Text("vs")
                     .font(.system(size: 7, weight: .bold, design: .rounded))
                     .foregroundColor(.white.opacity(0.45))
+                    .minimumScaleFactor(0.4)
                 
                 if let target = viewModel.currentMatch.scheduledTime {
                     Text(formatCountdown(to: target))
                         .font(.system(size: 9, weight: .bold, design: .monospaced))
                         .foregroundColor(Color(red: 0.4, green: 0.75, blue: 1.0))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.4)
                         .minimumScaleFactor(0.7)
                 }
                 
@@ -396,14 +398,24 @@ public struct ScoreWidgetView: View {
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.4)
                 }
                 
-                Text(viewModel.currentMatch.scoreA)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .layoutPriority(1) // High layout priority to prevent score truncation
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    if let prev = viewModel.currentMatch.metadata?.previousInningScoreA {
+                        Text(prev)
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.6))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                    }
+                    Text(viewModel.currentMatch.scoreA)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .layoutPriority(1) // High layout priority to prevent score truncation
+                }
             }
             
             // 2. Middle: Divider line and Pulsing Time
@@ -414,6 +426,7 @@ public struct ScoreWidgetView: View {
                     .textCase(.uppercase)
                     .lineLimit(1)
                     .minimumScaleFactor(0.7)
+                    .offset(y: 3.5)
                 
                 Text("—")
                     .font(.system(size: 10, weight: .bold, design: .rounded))
@@ -448,24 +461,36 @@ public struct ScoreWidgetView: View {
                     Text("\(overs) ov")
                         .font(.system(size: 8, weight: .bold, design: .rounded))
                         .foregroundColor(.white.opacity(0.8))
+                        .offset(y: -2)
                 }
             }
             .frame(minWidth: 35)
             
             // 3. Right Side: Score B & optional Name B & Flag B
             HStack(spacing: 4) {
-                Text(viewModel.currentMatch.scoreB)
-                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                    .foregroundColor(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
-                    .layoutPriority(1) // High layout priority to prevent score truncation
+                HStack(alignment: .lastTextBaseline, spacing: 2) {
+                    Text(viewModel.currentMatch.scoreB)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .layoutPriority(1) // High layout priority to prevent score truncation
+                        
+                    if let prev = viewModel.currentMatch.metadata?.previousInningScoreB {
+                        Text(prev)
+                            .font(.system(size: 8, weight: .bold, design: .rounded))
+                            .foregroundColor(.white.opacity(0.6))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
+                    }
+                }
                 
                 if viewModel.showTeamNames {
                     Text(viewModel.currentMatch.teamB.prefix(3))
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.4)
                 }
                 
                 TeamBadge(logoURL: viewModel.currentMatch.teamBLogo, flag: viewModel.currentMatch.teamBFlag, size: 18)

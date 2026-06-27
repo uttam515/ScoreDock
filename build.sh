@@ -26,6 +26,20 @@ echo "[*] Cleaning build directory..."
 rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 
+# Generate a 100% transparent icon for the helper apps to ensure they never show a white square
+if [ ! -f "${BUILD_DIR}/Transparent.icns" ]; then
+    echo "[*] Generating transparent icon for helper apps..."
+    echo "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=" | base64 --decode > "${BUILD_DIR}/transparent.png"
+    mkdir -p "${BUILD_DIR}/transparent.iconset"
+    cp "${BUILD_DIR}/transparent.png" "${BUILD_DIR}/transparent.iconset/icon_16x16.png"
+    cp "${BUILD_DIR}/transparent.png" "${BUILD_DIR}/transparent.iconset/icon_32x32.png"
+    cp "${BUILD_DIR}/transparent.png" "${BUILD_DIR}/transparent.iconset/icon_128x128.png"
+    cp "${BUILD_DIR}/transparent.png" "${BUILD_DIR}/transparent.iconset/icon_256x256.png"
+    cp "${BUILD_DIR}/transparent.png" "${BUILD_DIR}/transparent.iconset/icon_512x512.png"
+    iconutil -c icns "${BUILD_DIR}/transparent.iconset" -o "${BUILD_DIR}/Transparent.icns" 2>/dev/null || true
+    rm -rf "${BUILD_DIR}/transparent.png" "${BUILD_DIR}/transparent.iconset"
+fi
+
 echo "[*] Compiling Swift package (${CONFIG} mode)..."
 swift build --configuration "${CONFIG}"
 
@@ -89,6 +103,12 @@ package_app() {
 
     # Helper apps should be strictly background, main app should be standard
     if [ "${is_helper}" == "true" ]; then
+        if [ -f "${BUILD_DIR}/Transparent.icns" ]; then
+            cp "${BUILD_DIR}/Transparent.icns" "${target_resources_dir}/AppIcon.icns"
+            plist_content+="
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>"
+        fi
         plist_content+="
     <key>LSUIElement</key>
     <true/>"
@@ -149,13 +169,17 @@ fi
 
 if [ $RUN_APP -eq 1 ]; then
     echo "[*] Terminating existing ScoreDock processes..."
-    pkill -x ScoreDock || true
-    pkill -x ScoreDockHelper1 || true
-    pkill -x ScoreDockHelper2 || true
-    pkill -x ScoreDockHelper3 || true
-    pkill -x ScoreDockHelper4 || true
-    sleep 0.5
-    echo "[*] Launching native application via open..."
-    open "${BUILD_DIR}/ScoreDock.app"
+    killall ScoreDock 2>/dev/null || true
+    killall ScoreDockHelper1 2>/dev/null || true
+    killall ScoreDockHelper2 2>/dev/null || true
+    killall ScoreDockHelper3 2>/dev/null || true
+    killall ScoreDockHelper4 2>/dev/null || true
+        
+    echo "[*] Launching native application directly to inherit Terminal accessibility permissions..."
+    # By running the binary directly instead of using 'open', macOS treats it as a child process 
+    # of the Terminal, which allows it to inherit the Terminal's accessibility permissions.
+    # This completely fixes the annoyance of having to re-approve it in Settings on every build!
+    "${BUILD_DIR}/ScoreDock.app/Contents/MacOS/ScoreDock" &
     echo "[+] Launch successful."
+    exit 0
 fi

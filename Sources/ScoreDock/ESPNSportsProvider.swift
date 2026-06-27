@@ -167,15 +167,51 @@ public struct ESPNMapper {
                         }
                         
                         // Clean up cricket score strings (remove trailing overs/targets from the team's score block)
+                        // Also handle test matches which have format "1st inning & 2nd inning"
                         var finalScoreA = scoreAVal
                         var finalScoreB = scoreBVal
+                        var prevA: String? = nil
+                        var prevB: String? = nil
+                        
                         if sportType == "cricket" {
-                            if let spaceIdx = scoreAVal.firstIndex(of: " ") {
-                                finalScoreA = String(scoreAVal[..<spaceIdx])
+                            // Split innings if there's an '&'
+                            if scoreAVal.contains(" & ") {
+                                let parts = scoreAVal.components(separatedBy: " & ")
+                                if parts.count >= 2 {
+                                    prevA = parts[0]
+                                    finalScoreA = parts.last!
+                                }
                             }
-                            if let spaceIdx = scoreBVal.firstIndex(of: " ") {
-                                finalScoreB = String(scoreBVal[..<spaceIdx])
+                            if scoreBVal.contains(" & ") {
+                                let parts = scoreBVal.components(separatedBy: " & ")
+                                if parts.count >= 2 {
+                                    prevB = parts[0]
+                                    finalScoreB = parts.last!
+                                }
                             }
+                            
+                            // Remove overs text
+                            if let spaceIdx = finalScoreA.firstIndex(of: " ") {
+                                finalScoreA = String(finalScoreA[..<spaceIdx])
+                            }
+                            if let spaceIdx = finalScoreB.firstIndex(of: " ") {
+                                finalScoreB = String(finalScoreB[..<spaceIdx])
+                            }
+                            if let spaceIdx = prevA?.firstIndex(of: " ") {
+                                prevA = String(prevA![..<spaceIdx])
+                            }
+                            if let spaceIdx = prevB?.firstIndex(of: " ") {
+                                prevB = String(prevB![..<spaceIdx])
+                            }
+                        }
+                        
+                        // Add previous scores to metadata
+                        if prevA != nil || prevB != nil {
+                            if metadata == nil {
+                                metadata = SportMetadata()
+                            }
+                            metadata?.previousInningScoreA = prevA
+                            metadata?.previousInningScoreB = prevB
                         }
                         
                         // Map flags using display names

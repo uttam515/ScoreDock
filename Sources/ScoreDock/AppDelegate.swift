@@ -322,6 +322,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         
+        // Publish exact icon height to perfectly match adjacent dock icons
+        if scoreViewModel?.iconHeight != info.iconHeight {
+            DispatchQueue.main.async { [weak self] in
+                self?.scoreViewModel?.iconHeight = info.iconHeight
+            }
+        }
+        
         if info.isHorizontal {
             // Horizontal Dock: Panel takes full height of Dock bar to prevent clipping during hover scaling,
             // and spans horizontally across all 5 transparent tiles.

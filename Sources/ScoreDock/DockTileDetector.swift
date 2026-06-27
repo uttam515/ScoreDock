@@ -4,6 +4,7 @@ import ApplicationServices
 public struct DockFrameInfo {
     public var spannedTileFrame: CGRect
     public var dockBarFrame: CGRect
+    public var iconHeight: CGFloat
     public var isHorizontal: Bool
 }
 
@@ -49,6 +50,7 @@ public struct DockTileDetector {
         
         // Calculate the bounding box (union) of all found tiles
         var unionFrame = frames[0]
+        let iconHeight = frames[0].height
         for i in 1..<frames.count {
             unionFrame = unionFrame.union(frames[i])
         }
@@ -58,6 +60,7 @@ public struct DockTileDetector {
         return DockFrameInfo(
             spannedTileFrame: unionFrame,
             dockBarFrame: barFrame,
+            iconHeight: iconHeight,
             isHorizontal: isHorizontal
         )
     }
