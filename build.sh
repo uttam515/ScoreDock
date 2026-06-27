@@ -122,9 +122,17 @@ echo "[+] Successfully packaged native applications in build/"
 
 if [ $BUILD_DMG -eq 1 ]; then
     echo "[*] Generating DMG installer..."
+    
+    # Create a staging folder so create-dmg packages the .app bundle itself, not its contents
+    mkdir -p "${BUILD_DIR}/dmg_stage"
+    cp -r "${BUILD_DIR}/ScoreDock.app" "${BUILD_DIR}/dmg_stage/"
+    
+    # Remove any existing DMG to prevent create-dmg errors
+    rm -f "${BUILD_DIR}/ScoreDock.dmg"
+    
     if command -v create-dmg &> /dev/null; then
         create-dmg \
-          --volname "ScoreDock Installer" \
+          --volname "Install ScoreDock" \
           --window-pos 200 120 \
           --window-size 600 400 \
           --icon-size 100 \
@@ -132,7 +140,7 @@ if [ $BUILD_DMG -eq 1 ]; then
           --hide-extension "ScoreDock.app" \
           --app-drop-link 450 190 \
           "${BUILD_DIR}/ScoreDock.dmg" \
-          "${BUILD_DIR}/ScoreDock.app"
+          "${BUILD_DIR}/dmg_stage/"
         echo "[+] Successfully created ScoreDock.dmg in build/"
     else
         echo "[-] Error: create-dmg is not installed. Run 'brew install create-dmg'"
