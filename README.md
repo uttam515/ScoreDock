@@ -25,9 +25,9 @@ ScoreDock uses a custom build script that leverages the native `swiftc` compiler
 2. Ensure you have the Swift toolchain installed (via Xcode Command Line Tools).
 3. Run the build script:
 ```bash
-./build.sh
+./build.sh --release
 ```
-4. The script will compile the app and place the `.app` bundle in the `build/` directory, and will automatically launch it.
+4. The script will compile the app, generate a macOS `.app` bundle, package it into a `.dmg` installer, and launch it automatically!
 
 ## Customizing Favorites
 

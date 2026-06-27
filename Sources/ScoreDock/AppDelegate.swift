@@ -206,14 +206,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func launchHelpers() {
-        let mainBundleURL = Bundle.main.bundleURL
-        let parentDir = mainBundleURL.deletingLastPathComponent()
+        let helpersDir = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers")
         
         // Four helpers + main app = 5 Dock tiles total
         let helperNames = ["ScoreDockHelper1", "ScoreDockHelper2", "ScoreDockHelper3", "ScoreDockHelper4"]
         
         for name in helperNames {
-            let helperURL = parentDir.appendingPathComponent("\(name).app")
+            let helperURL = helpersDir.appendingPathComponent("\(name).app")
             
             if FileManager.default.fileExists(atPath: helperURL.path) {
                 print("[*] Launching helper app: \(name)")
@@ -364,11 +363,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     private func terminateHelpers() {
-        let helperIdentifiers = ["com.scoredock.ScoreDockHelper1", "com.scoredock.ScoreDockHelper2", "com.scoredock.ScoreDockHelper3", "com.scoredock.ScoreDockHelper4"]
+        let helperIdentifiers = ["com.uttam.scoredock.helper1", "com.uttam.scoredock.helper2", "com.uttam.scoredock.helper3", "com.uttam.scoredock.helper4"]
         for identifier in helperIdentifiers {
             let runningApps = NSRunningApplication.runningApplications(withBundleIdentifier: identifier)
             for app in runningApps {
-                app.terminate()
+                app.forceTerminate()
             }
         }
     }

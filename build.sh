@@ -1,19 +1,35 @@
 #!/bin/bash
 set -e
 
-# scoredock build script
-# Compiles Swift Package Manager target and creates native macOS .app wrappers
+# ScoreDock Native macOS Build Script
+# Compiles Swift Package Manager target and creates native macOS .app bundles
 
 PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BUILD_DIR="${PROJECT_DIR}/build"
+APP_ICON="${PROJECT_DIR}/AppIcon.icns"
 
-echo "[*] Step 1: Ensuring build directory exists..."
+# Default configuration
+CONFIG="debug"
+BUILD_DMG=0
+RUN_APP=0
+
+for arg in "$@"; do
+    case $arg in
+        --release) CONFIG="release" ;;
+        --debug)   CONFIG="debug" ;;
+        --dmg)     BUILD_DMG=1 ;;
+        --run)     RUN_APP=1 ;;
+    esac
+done
+
+echo "[*] Cleaning build directory..."
+rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 
-echo "[*] Step 2: Compiling Swift package (debug mode)..."
-swift build --configuration debug
+echo "[*] Compiling Swift package (${CONFIG} mode)..."
+swift build --configuration "${CONFIG}"
 
-BINARY_PATH="${PROJECT_DIR}/.build/debug/ScoreDock"
+BINARY_PATH="${PROJECT_DIR}/.build/${CONFIG}/ScoreDock"
 
 if [ ! -f "${BINARY_PATH}" ]; then
     echo "[-] Error: Compiled binary not found at ${BINARY_PATH}"
@@ -23,7 +39,16 @@ fi
 package_app() {
     local app_name=$1
     local bundle_id=$2
-    local target_app_dir="${BUILD_DIR}/${app_name}.app"
+    local is_helper=$3
+    
+    local target_app_dir
+    if [ "${is_helper}" == "true" ]; then
+        # Package helpers INSIDE the main app bundle
+        target_app_dir="${BUILD_DIR}/ScoreDock.app/Contents/Helpers/${app_name}.app"
+    else
+        target_app_dir="${BUILD_DIR}/${app_name}.app"
+    fi
+    
     local target_macos_dir="${target_app_dir}/Contents/MacOS"
     local target_resources_dir="${target_app_dir}/Contents/Resources"
     
@@ -34,10 +59,10 @@ package_app() {
     cp "${BINARY_PATH}" "${target_macos_dir}/${app_name}"
     chmod +x "${target_macos_dir}/${app_name}"
     
-    cat <<EOF > "${target_app_dir}/Contents/Info.plist"
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
+    # Base plist
+    local plist_content="<?xml version=\"1.0\" encoding=\"UTF-8\"?>
+<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">
+<plist version=\"1.0\">
 <dict>
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
@@ -57,30 +82,64 @@ package_app() {
     <string>1</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
-    <key>LSUIElement</key>
-    <true/>
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
+    <string>NSApplication</string>"
+
+    # Helper apps should be strictly background, main app should be standard
+    if [ "${is_helper}" == "true" ]; then
+        plist_content+="
+    <key>LSUIElement</key>
+    <true/>"
+    else
+        # Main App: Add AppIcon if available
+        if [ -f "${APP_ICON}" ]; then
+            cp "${APP_ICON}" "${target_resources_dir}/AppIcon.icns"
+            plist_content+="
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>"
+        fi
+    fi
+
+    plist_content+="
 </dict>
-</plist>
-EOF
+</plist>"
+
+    echo "${plist_content}" > "${target_app_dir}/Contents/Info.plist"
 
     echo "[*] Signing ${app_name}.app..."
     codesign --force --deep --sign - "${target_app_dir}"
 }
 
-package_app "ScoreDock" "com.scoredock.ScoreDock"
-package_app "ScoreDockHelper1" "com.scoredock.ScoreDockHelper1"
-package_app "ScoreDockHelper2" "com.scoredock.ScoreDockHelper2"
-package_app "ScoreDockHelper3" "com.scoredock.ScoreDockHelper3"
-package_app "ScoreDockHelper4" "com.scoredock.ScoreDockHelper4"
+package_app "ScoreDockHelper1" "com.uttam.scoredock.helper1" "true"
+package_app "ScoreDockHelper2" "com.uttam.scoredock.helper2" "true"
+package_app "ScoreDockHelper3" "com.uttam.scoredock.helper3" "true"
+package_app "ScoreDockHelper4" "com.uttam.scoredock.helper4" "true"
+package_app "ScoreDock" "com.uttam.scoredock" "false"
 
-echo "[+] Successfully packaged applications in build/"
-echo "[*] You can run the main app with: open build/ScoreDock.app"
+echo "[+] Successfully packaged native applications in build/"
 
-if [ "$1" == "--run" ]; then
+if [ $BUILD_DMG -eq 1 ]; then
+    echo "[*] Generating DMG installer..."
+    if command -v create-dmg &> /dev/null; then
+        create-dmg \
+          --volname "ScoreDock Installer" \
+          --window-pos 200 120 \
+          --window-size 600 400 \
+          --icon-size 100 \
+          --icon "ScoreDock.app" 150 190 \
+          --hide-extension "ScoreDock.app" \
+          --app-drop-link 450 190 \
+          "${BUILD_DIR}/ScoreDock.dmg" \
+          "${BUILD_DIR}/ScoreDock.app"
+        echo "[+] Successfully created ScoreDock.dmg in build/"
+    else
+        echo "[-] Error: create-dmg is not installed. Run 'brew install create-dmg'"
+    fi
+fi
+
+if [ $RUN_APP -eq 1 ]; then
     echo "[*] Terminating existing ScoreDock processes..."
     pkill -x ScoreDock || true
     pkill -x ScoreDockHelper1 || true
@@ -88,7 +147,7 @@ if [ "$1" == "--run" ]; then
     pkill -x ScoreDockHelper3 || true
     pkill -x ScoreDockHelper4 || true
     sleep 0.5
-    echo "[*] Launching native application..."
+    echo "[*] Launching native application via open..."
     open "${BUILD_DIR}/ScoreDock.app"
     echo "[+] Launch successful."
 fi

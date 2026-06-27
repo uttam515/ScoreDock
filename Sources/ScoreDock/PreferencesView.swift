@@ -20,11 +20,6 @@ public struct PreferencesView: View {
                     Label("Favorites", systemImage: "star.fill")
                 }
             
-            apiTab
-                .tabItem {
-                    Label("API Config", systemImage: "network")
-                }
-            
             rotationTab
                 .tabItem {
                     Label("Rotation Mode", systemImage: "arrow.triangle.2.circlepath")
@@ -32,12 +27,6 @@ public struct PreferencesView: View {
         }
         .frame(width: 420, height: 320)
         .padding()
-        .onAppear {
-            apiSourceReal = coordinator.useRealAPIs
-            if let idx = windowOptions.firstIndex(of: coordinator.upcomingMatchWindow) {
-                upcomingWindowIndex = idx
-            }
-        }
     }
     
     // MARK: - Data Models

@@ -243,6 +243,15 @@ public struct ScoreWidgetView: View {
             // Dynamically size width for horizontal bottom Dock, vertical spans full tile height
             .frame(width: viewModel.isHorizontal ? viewModel.estimatedCardWidth : nil)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // HoverTracker applied to the card background directly (safe now since scaleEffect is removed)
+            .background(
+                HoverTracker { hovering in
+                    withAnimation {
+                        isHovered = hovering
+                        viewModel.isHovered = hovering // Notify model to trigger AppDelegate tracking
+                    }
+                }
+            )
             // Background card glassmorphism — dynamic gradient based on team colors, or blue for upcoming
             .background(
                 RoundedRectangle(cornerRadius: 16)
@@ -255,8 +264,7 @@ public struct ScoreWidgetView: View {
             )
             .clipShape(RoundedRectangle(cornerRadius: 16))
             .contentShape(RoundedRectangle(cornerRadius: 16))
-            // Scale and Shadow magnification effects
-            .scaleEffect(isHovered ? 1.12 : 1.00)
+            // Shadow effects (scaleEffect removed to prevent window boundary / Dock magnification jitter)
             .shadow(color: Color.black.opacity(isHovered ? 0.35 : 0.15), radius: isHovered ? 6 : 3, x: 0, y: isHovered ? 3 : 1)
             // Animate width changes and hover states with smooth spring dynamics
             .animation(.spring(response: 0.35, dampingFraction: 0.75), value: viewModel.estimatedCardWidth)
@@ -305,18 +313,6 @@ public struct ScoreWidgetView: View {
                         }
                     }
             )
-            
-            // Static hover tracker background that sits on top to prevent being occluded during scaling
-            Color.clear
-                .contentShape(Rectangle())
-                .background(
-                    HoverTracker { hovering in
-                        withAnimation {
-                            isHovered = hovering
-                            viewModel.isHovered = hovering // Notify model to trigger AppDelegate tracking
-                        }
-                    }
-                )
         }
         .onReceive(countdownTimer) { date in
             if viewModel.currentMatch.isUpcoming {
