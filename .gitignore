@@ -1,0 +1,26 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode / Swift Package Manager
+.build/
+.swiftpm/
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+*.xcworkspace/xcshareddata/
+DerivedData/
+*.moved-aside
+
+# Custom Build Directory
+build/
+
+# Logs and Crash Reports
+*.log
+*.crash
+
+# Temporary Files
+*~
+*.swp
+*.swo
