@@ -246,8 +246,9 @@ public struct ScoreWidgetView: View {
                 }
                 .padding(.vertical, viewModel.isHorizontal ? 4 : 8)
                 .padding(.horizontal, viewModel.isHorizontal ? 10 : 4)
-                .frame(width: viewModel.isHorizontal ? viewModel.estimatedCardWidth : nil)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Draw the view at exactly its base intended size...
+                .frame(width: viewModel.isHorizontal ? viewModel.estimatedCardWidth : nil, height: baseHeight)
+                // ...and let HoverTracker run on this fixed size
                 .background(
                     HoverTracker { hovering in
                         withAnimation {
@@ -313,6 +314,7 @@ public struct ScoreWidgetView: View {
                         }
                 )
             }
+            // ...then scale the whole fully-rendered fixed-size view down to fit the actual available dock size
             .scaleEffect(scale)
             .position(x: geo.size.width / 2, y: geo.size.height / 2)
         }
