@@ -222,7 +222,9 @@ public struct ScoreWidgetView: View {
     public var body: some View {
         GeometryReader { geo in
             let baseHeight: CGFloat = viewModel.isHorizontal ? 64 : 128
-            let rawScale = geo.size.height / baseHeight
+            // The GeometryReader gets the full height of the dock bar, but icons are smaller.
+            // Multiply by 0.82 to proportionately scale the widget to match standard macOS icon heights.
+            let rawScale = (geo.size.height * 0.82) / baseHeight
             let scale = min(1.2, rawScale)
             
             // Un-scale the width so that after .scaleEffect(scale) is applied, 
