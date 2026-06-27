@@ -226,8 +226,8 @@ public struct ScoreWidgetView: View {
             let scale = min(1.2, rawScale)
             
             // Un-scale the width so that after .scaleEffect(scale) is applied, 
-            // the rendered width perfectly matches the estimated card width.
-            let intendedWidth = viewModel.isHorizontal ? viewModel.estimatedCardWidth : geo.size.width
+            // the rendered width perfectly matches the full container width (edge-to-edge across all 5 tiles).
+            let intendedWidth = geo.size.width
             let baseWidth = intendedWidth / scale
             
             ZStack {
