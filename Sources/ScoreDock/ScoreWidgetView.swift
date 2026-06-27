@@ -223,8 +223,12 @@ public struct ScoreWidgetView: View {
         GeometryReader { geo in
             let baseHeight: CGFloat = viewModel.isHorizontal ? 64 : 128
             let rawScale = geo.size.height / baseHeight
-            // Allow slight upscale, but mostly designed to scale down for smaller Docks
             let scale = min(1.2, rawScale)
+            
+            // Un-scale the width so that after .scaleEffect(scale) is applied, 
+            // the rendered width perfectly matches the estimated card width.
+            let intendedWidth = viewModel.isHorizontal ? viewModel.estimatedCardWidth : geo.size.width
+            let baseWidth = intendedWidth / scale
             
             ZStack {
                 Group {
@@ -247,7 +251,7 @@ public struct ScoreWidgetView: View {
                 .padding(.vertical, viewModel.isHorizontal ? 4 : 8)
                 .padding(.horizontal, viewModel.isHorizontal ? 10 : 4)
                 // Draw the view at exactly its base intended size...
-                .frame(width: viewModel.isHorizontal ? viewModel.estimatedCardWidth : nil, height: baseHeight)
+                .frame(width: baseWidth, height: baseHeight)
                 // ...and let HoverTracker run on this fixed size
                 .background(
                     HoverTracker { hovering in
